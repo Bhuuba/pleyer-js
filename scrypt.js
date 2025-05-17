@@ -1,15 +1,17 @@
 const seekSlider = document.getElementById("seek-slider");
-const audio = document.getElementById("aud");
-const btnSearch = document.getElementById("btnc");
+const audio = document.getElementById("audio");
+const btnSearch = document.getElementById("btnSearch");
 const searchInput = document.getElementById("searchInput");
-const btnNext = document.getElementById("myButton");
-const btnPrev = document.getElementById("myButtonE");
-const artistN = document.getElementById("artistN");
+const btnNext = document.getElementById("btnNext");
+const btnPrev = document.getElementById("btnPrev");
+const artistsName = document.getElementById("artistsName");
 const imgCover = document.getElementById("img");
 const nameMusic = document.getElementById("nameMusic");
 const currentTimeDisplay = document.getElementById("current-time");
 const durationTimeDisplay = document.getElementById("duration-time");
 const playPauseButton = document.querySelector(".play-pause-button");
+const massage = document.querySelector(".notification");
+
 let counterNum = 0;
 let currentResults = [];
 let currentTerm = "";
@@ -19,21 +21,30 @@ function loadTrack() {
   const track = currentResults[counterNum];
   audio.src = track.previewUrl;
   audio.oncanplaythrough = () => {
-    audio.play();
-    if (audio.paused) {
-      audio.play();
-      playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
-    } else {
-      audio.play();
-      playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
-    }
+    audio
+      .play()
+      .then(() => {
+        if (!audio.paused) {
+          playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+        } else {
+          playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+        }
+      })
+      .catch(() => {
+        playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+      });
   };
   audio.load();
-  artistN.textContent = track.artistName;
+  artistsName.textContent = track.artistName;
   imgCover.src = track.artworkUrl100;
   nameMusic.textContent = track.trackName;
 }
-
+function showError() {
+  massage.removeAttribute("hidden");
+  setTimeout(() => {
+    massage.setAttribute("hidden", true);
+  }, 2000);
+}
 function fetchTracks(term) {
   const q = encodeURIComponent(term);
   fetch(
@@ -42,7 +53,7 @@ function fetchTracks(term) {
     .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
     .then((data) => {
       if (!data.results.length) {
-        alert("Нічого не знайдено за запитом: " + term);
+        showError();
         return;
       }
       currentResults = data.results;
@@ -52,12 +63,22 @@ function fetchTracks(term) {
     })
     .catch((err) => {
       console.error(err);
-      alert("Помилка при пошуку треків.");
+      showError();
     });
 }
+function debounce(func, delay) {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+const debouncedFetchTracks = debounce((term) => {
+  fetchTracks(term);
+}, 500);
 btnSearch.addEventListener("click", (e) => {
   e.preventDefault();
-  fetchTracks(searchInput.value.trim());
+  debouncedFetchTracks(searchInput.value.trim());
 });
 
 fetchTracks("Wake Up, Girls!");
