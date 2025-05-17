@@ -10,67 +10,71 @@ const nameMusic = document.getElementById("nameMusic");
 const currentTimeDisplay = document.getElementById("current-time");
 const durationTimeDisplay = document.getElementById("duration-time");
 const playPauseButton = document.querySelector(".play-pause-button");
-const audioPlayer = document.querySelector(".audio-player");
 let counterNum = 0;
+let currentResults = [];
+let currentTerm = "";
 
-// переписуємо наше ооп на функціональне
-playPauseButton.addEventListener("click", () => {
-  if (audioPlayer.paused) {
-    audioPlayer.play();
-    playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
-  } else {
-    audioPlayer.pause();
-    playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
-  }
-});
-function formatTime(seconds) {
-  const min = Math.floor(seconds / 60);
-  const sec = Math.floor(seconds % 60);
-  return `${min}:${sec < 10 ? "0" + sec : sec}`;
+function loadTrack() {
+  if (!currentResults.length) return;
+  const track = currentResults[counterNum];
+  audio.src = track.previewUrl;
+  audio.oncanplaythrough = () => {
+    audio.play();
+    if (audio.paused) {
+      audio.play();
+      playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+    } else {
+      audio.play();
+      playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+    }
+  };
+  audio.load();
+  artistN.textContent = track.artistName;
+  imgCover.src = track.artworkUrl100;
+  nameMusic.textContent = track.trackName;
 }
-function searchTrack(e) {
-  e.preventDefault();
-  const term = encodeURIComponent(searchInput.value);
-  fetch(`https://itunes.apple.com/search?term=${term}&media=music&country=UA`)
-    .then((res) =>
-      res.ok ? res.json() : Promise.reject("Біда біда немає треків інет ліг")
-    )
+
+function fetchTracks(term) {
+  const q = encodeURIComponent(term);
+  fetch(
+    `https://itunes.apple.com/search?term=${q}&media=music&limit=25&country=UA`
+  )
+    .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
     .then((data) => {
-      if (data.results.length > 0) {
-        let trackCount = data.results.length;
-        if (counterNum < 0) {
-          counterNum = trackCount - 1;
-        } else if (counterNum >= trackCount) {
-          counterNum = 0;
-        }
-        const track = data.results[counterNum];
-        audio.src = track.previewUrl;
-        audio.load();
-        audio.play();
-        playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
-        artistN.textContent = track.artistName;
-        imgCover.src = track.artworkUrl100;
-        nameMusic.textContent = track.collectionCensoredName;
-      } else {
-        alert("Нічого не знайдено(");
+      if (!data.results.length) {
+        alert("Нічого не знайдено за запитом: " + term);
+        return;
       }
+      currentResults = data.results;
+      currentTerm = term;
+      counterNum = 0;
+      loadTrack();
     })
-    .catch((err) => console.error("Помилка:", err));
+    .catch((err) => {
+      console.error(err);
+      alert("Помилка при пошуку треків.");
+    });
 }
-btnSearch.addEventListener("click", searchTrack);
-
-btnNext.addEventListener("click", () => {
-  playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
-  counterNum++;
-  searchTrack(new Event("click"));
-});
-btnPrev.addEventListener("click", () => {
-  playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
-  counterNum--;
-  searchTrack(new Event("click"));
+btnSearch.addEventListener("click", (e) => {
+  e.preventDefault();
+  fetchTracks(searchInput.value.trim());
 });
 
-// тут я трохі обікав стек оверфлоу
+fetchTracks("Wake Up, Girls!");
+function changeTrack(chane) {
+  if (!currentResults.length) return;
+  counterNum =
+    (counterNum + chane + currentResults.length) % currentResults.length;
+  loadTrack();
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${m}:${s}`;
+}
 audio.addEventListener("loadedmetadata", () => {
   seekSlider.max = Math.floor(audio.duration);
   durationTimeDisplay.textContent = formatTime(audio.duration);
@@ -81,4 +85,17 @@ audio.addEventListener("timeupdate", () => {
 });
 seekSlider.addEventListener("input", () => {
   audio.currentTime = seekSlider.value;
+});
+
+btnNext.addEventListener("click", () => changeTrack(1));
+btnPrev.addEventListener("click", () => changeTrack(-1));
+audio.addEventListener("ended", () => changeTrack(1));
+playPauseButton.addEventListener("click", () => {
+  if (audio.paused) {
+    audio.play();
+    playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+  } else {
+    audio.pause();
+    playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+  }
 });
