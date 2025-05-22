@@ -45,27 +45,29 @@ function showError() {
     massage.setAttribute("hidden", true);
   }, 2000);
 }
-function fetchTracks(term) {
+
+async function fetchTracks(term) {
   const q = encodeURIComponent(term);
-  fetch(
-    `https://itunes.apple.com/search?term=${q}&media=music&limit=25&country=UA`
-  )
-    .then((res) => (res.ok ? res.json() : Promise.reject(res.statusText)))
-    .then((data) => {
-      if (!data.results.length) {
-        showError();
-        return;
-      }
-      currentResults = data.results;
-      currentTerm = term;
-      counterNum = 0;
-      loadTrack();
-    })
-    .catch((err) => {
-      console.error(err);
+  try {
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${q}&media=music&limit=25&country=UA`
+    );
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    if (!data.results.length) {
       showError();
-    });
+      return;
+    }
+    currentResults = data.results;
+    currentTerm = term;
+    counterNum = 0;
+    loadTrack();
+  } catch (err) {
+    console.error(err);
+    showError();
+  }
 }
+
 function debounce(func, delay) {
   let timeoutId;
   return function (...args) {
